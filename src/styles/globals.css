@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Design tokens - "instrument panel" direction.
+  Orbit is infrastructure, not a marketing product: the visual language
+  borrows from precision instruments (orreries, control panels) rather
+  than generic SaaS gradients. Graphite surfaces, warm paper text, a
+  single amber signal color reserved for the thing that matters (state,
+  focus, the orbit motif itself) - never decoration for its own sake.
+*/
+
+:root {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  background-color: #0f1013;
+  color: #e9e5da;
+  font-family: var(--font-body);
+}
+
+/* Visible keyboard focus everywhere - never suppressed. */
+:focus-visible {
+  outline: 2px solid #e0a23d;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
