@@ -41,7 +41,7 @@ const DEFAULT_CONNECTION: ConnectorConnectionInput = {
   connector_token: "",
 };
 
-type Step = "language" | "database" | "configure" | "code";
+type Step = "language" | "database" | "configure" | "code" | "done";
 
 /**
  * Orbit Connector Generator
@@ -56,11 +56,12 @@ type Step = "language" | "database" | "configure" | "code";
  *
  * Orbit remembers three things across visits: language, database
  * engine, and the Connector URL (never host/port/username, and never
- * the password - same rule the generator itself follows). Loaded once
- * on mount and re-saved whenever the code is generated or a test
- * connection succeeds. If Test Connection is clicked with nothing to
- * test against, a prompt asks for the Connector URL so it can be
- * saved and used right away.
+ * the password - same rule the generator itself follows). If a saved
+ * row already exists for this company, the wizard is skipped entirely
+ * in favor of a "done" summary - Test Connection can be run from
+ * there as many times as needed. The only way back into the wizard is
+ * deleting the saved settings, which clears the row and starts over
+ * from step one.
  */
 export function ConnectorGenerator() {
   const [step, setStep] = useState<Step>("language");
@@ -79,13 +80,15 @@ export function ConnectorGenerator() {
   const [testing, setTesting] = useState(false);
 
   const [loadedPreferences, setLoadedPreferences] = useState<ConnectorPreferences | null>(null);
-  const [restoredFromMemory, setRestoredFromMemory] = useState(false);
+  const [checkingPreferences, setCheckingPreferences] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [urlPromptOpen, setUrlPromptOpen] = useState(false);
   const [urlPromptValue, setUrlPromptValue] = useState("");
 
   // Load what Orbit remembers from the last visit - language, database
-  // engine, and Connector URL - and prefill the wizard with it so the
-  // company doesn't have to redo the whole flow every time.
+  // engine, and Connector URL. If something's already saved, skip the
+  // wizard entirely and land on the "done" summary instead of asking
+  // the company to redo steps they already finished.
   useEffect(() => {
     developerService
       .getConnectorPreferences<{ preferences: ConnectorPreferences | null }>()
@@ -98,13 +101,13 @@ export function ConnectorGenerator() {
         if (prefs.connector_url) {
           setConnection((c) => ({ ...c, connector_url: prefs.connector_url ?? "" }));
         }
-        setStep("configure");
-        setRestoredFromMemory(true);
+        setStep("done");
       })
       .catch(() => {
         // No saved preferences yet, or the read failed - just start
         // the wizard fresh, same as a first-time visit.
-      });
+      })
+      .finally(() => setCheckingPreferences(false));
   }, []);
 
   function rememberPreferences(lang: ConnectorLanguage, db: ConnectorDatabase, connectorUrl: string) {
@@ -115,6 +118,19 @@ export function ConnectorGenerator() {
         // Best-effort - the wizard still works fine this session even
         // if remembering it for next time didn't go through.
       });
+  }
+
+  async function handleDelete() {
+    setDeleting(true);
+    setErrorMessage(null);
+    try {
+      await developerService.deleteConnectorPreferences();
+      reset();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Could not delete saved settings");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function updateTable(index: number, patch: Partial<ConnectorTableMappingInput>) {
@@ -202,6 +218,50 @@ export function ConnectorGenerator() {
     runTest();
   }
 
+  function renderTestResult() {
+    if (!testResult) return null;
+    return (
+      <div className="mt-3 rounded bg-graphite-900 p-3 text-xs">
+        <p className={testResult.connected ? "text-signal-green" : "text-signal-red"}>
+          {testResult.connected ? "Connected" : "Could not connect"}
+        </p>
+        {testResult.error && <p className="mt-1 text-signal-red">{testResult.error}</p>}
+        <p className="mt-1 text-graphite-600">Tested just now · not saved by Orbit</p>
+
+        {testResult.tables.length > 0 && (
+          <div className="mt-3 flex flex-col gap-3">
+            {testResult.tables.map((t) => (
+              <div key={t.entity} className="rounded border border-graphite-700 p-2">
+                <p className="text-paper">
+                  {t.entity} → <span className="font-mono">{t.table}</span>{" "}
+                  {t.reachable ? (
+                    <span className="text-signal-green">reachable</span>
+                  ) : (
+                    <span className="text-signal-red">not reachable</span>
+                  )}
+                </p>
+                {t.error && <p className="mt-1 text-signal-red">{t.error}</p>}
+                {t.reachable && (
+                  <>
+                    <p className="mt-1 text-graphite-600">
+                      Columns: {t.columns.join(", ") || "—"}
+                      {t.row_count !== null && ` · ${t.row_count} rows total`}
+                    </p>
+                    {t.sample_rows.length > 0 && (
+                      <pre className="mt-1 whitespace-pre-wrap font-mono text-paper">
+                        {JSON.stringify(t.sample_rows, null, 2)}
+                      </pre>
+                    )}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function handleCopy() {
     if (!code) return;
     navigator.clipboard.writeText(code);
@@ -231,7 +291,7 @@ export function ConnectorGenerator() {
     setCode(null);
     setTestResult(null);
     setErrorMessage(null);
-    setRestoredFromMemory(false);
+    setLoadedPreferences(null);
   }
 
   return (
@@ -243,31 +303,67 @@ export function ConnectorGenerator() {
         </p>
       )}
 
-      {restoredFromMemory && loadedPreferences && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded border border-graphite-700 bg-graphite-900 px-3 py-2 text-xs text-graphite-600">
-          <span>
-            Loaded your saved settings - {CONNECTOR_LANGUAGE_LABELS[loadedPreferences.language]} ·{" "}
-            {CONNECTOR_DATABASE_LABELS[loadedPreferences.database]}
-            {loadedPreferences.connector_url ? " · Connector URL remembered" : ""}.
-          </span>
-          <Button variant="ghost" onClick={reset} className="py-1 text-xs">
-            Start fresh instead
-          </Button>
+      {checkingPreferences && step !== "done" && (
+        <p className="text-sm text-graphite-600">Checking for saved settings…</p>
+      )}
+
+      {!checkingPreferences && step !== "done" && (
+        <div className="mb-4 flex flex-wrap gap-2 text-xs text-graphite-600">
+          {(["language", "database", "configure", "code"] as Step[]).map((s, i) => (
+            <span
+              key={s}
+              className={`rounded-full border px-2 py-1 ${
+                step === s ? "border-signal-amber text-paper" : "border-graphite-700"
+              }`}
+            >
+              {i + 1}. {s === "language" ? "Language" : s === "database" ? "Database" : s === "configure" ? "Connect & map tables" : "Code"}
+            </span>
+          ))}
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2 text-xs text-graphite-600">
-        {(["language", "database", "configure", "code"] as Step[]).map((s, i) => (
-          <span
-            key={s}
-            className={`rounded-full border px-2 py-1 ${
-              step === s ? "border-signal-amber text-paper" : "border-graphite-700"
-            }`}
-          >
-            {i + 1}. {s === "language" ? "Language" : s === "database" ? "Database" : s === "configure" ? "Connect & map tables" : "Code"}
-          </span>
-        ))}
-      </div>
+      {step === "done" && loadedPreferences && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-signal-green/15 px-2 py-1 text-xs text-signal-green">
+              Done
+            </span>
+            <p className="text-sm text-paper">Connector settings are saved</p>
+          </div>
+          <div className="rounded border border-graphite-700 p-3 text-xs text-graphite-600">
+            <p>
+              Language: <span className="text-paper">{CONNECTOR_LANGUAGE_LABELS[loadedPreferences.language]}</span>
+            </p>
+            <p className="mt-1">
+              Database: <span className="text-paper">{CONNECTOR_DATABASE_LABELS[loadedPreferences.database]}</span>
+            </p>
+            <p className="mt-1">
+              Connector URL:{" "}
+              {loadedPreferences.connector_url ? (
+                <span className="break-all font-mono text-paper">{loadedPreferences.connector_url}</span>
+              ) : (
+                <span className="text-graphite-600">not set</span>
+              )}
+            </p>
+          </div>
+          <p className="text-xs text-graphite-600">
+            You can run Test Connection as many times as you like below. To change the language,
+            database, or Connector URL, delete these saved settings first - that&apos;s the only
+            way back into the setup wizard.
+          </p>
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleTest} disabled={testing}>
+              {testing ? "Testing…" : "Test connection"}
+            </Button>
+            <Button variant="ghost" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete saved settings"}
+            </Button>
+          </div>
+
+          {renderTestResult()}
+        </div>
+      )}
 
       {step === "language" && (
         <div>
@@ -511,48 +607,7 @@ export function ConnectorGenerator() {
               {testing ? "Testing…" : "Test connection"}
             </Button>
 
-            {testResult && (
-              <div className="mt-3 rounded bg-graphite-900 p-3 text-xs">
-                <p className={testResult.connected ? "text-signal-green" : "text-signal-red"}>
-                  {testResult.connected ? "Connected" : "Could not connect"}
-                </p>
-                {testResult.error && <p className="mt-1 text-signal-red">{testResult.error}</p>}
-                <p className="mt-1 text-graphite-600">
-                  Tested just now · not saved by Orbit
-                </p>
-
-                {testResult.tables.length > 0 && (
-                  <div className="mt-3 flex flex-col gap-3">
-                    {testResult.tables.map((t) => (
-                      <div key={t.entity} className="rounded border border-graphite-700 p-2">
-                        <p className="text-paper">
-                          {t.entity} → <span className="font-mono">{t.table}</span>{" "}
-                          {t.reachable ? (
-                            <span className="text-signal-green">reachable</span>
-                          ) : (
-                            <span className="text-signal-red">not reachable</span>
-                          )}
-                        </p>
-                        {t.error && <p className="mt-1 text-signal-red">{t.error}</p>}
-                        {t.reachable && (
-                          <>
-                            <p className="mt-1 text-graphite-600">
-                              Columns: {t.columns.join(", ") || "—"}
-                              {t.row_count !== null && ` · ${t.row_count} rows total`}
-                            </p>
-                            {t.sample_rows.length > 0 && (
-                              <pre className="mt-1 whitespace-pre-wrap font-mono text-paper">
-                                {JSON.stringify(t.sample_rows, null, 2)}
-                              </pre>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            {renderTestResult()}
           </div>
         </div>
       )}

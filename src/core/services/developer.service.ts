@@ -77,4 +77,7 @@ export const developerService = {
   }): Promise<T> {
     return gateway.post<T>(endpoints.connectorPreferences, input);
   },
+  async deleteConnectorPreferences<T = { deleted: boolean }>(): Promise<T> {
+    return gateway.delete<T>(endpoints.connectorPreferences);
+  },
 };
