@@ -2,6 +2,13 @@ import { gateway } from "@/core/gateway/gateway";
 import { endpoints } from "@/core/gateway/endpoints";
 import type {
   ApiGenerateResult,
+  ConnectorConnectionInput,
+  ConnectorDatabase,
+  ConnectorGenerateResult,
+  ConnectorLanguage,
+  ConnectorPreferences,
+  ConnectorTableMappingInput,
+  ConnectorTestResult,
   RotateSecretResult,
   SdkGenerateResult,
   SdkLanguage,
@@ -43,5 +50,31 @@ export const developerService = {
   },
   async generateSdk<T = SdkGenerateResult>(language: SdkLanguage): Promise<T> {
     return gateway.get<T>(endpoints.sdk(language));
+  },
+  async generateConnector<T = ConnectorGenerateResult>(input: {
+    language: ConnectorLanguage;
+    database: ConnectorDatabase;
+    filename?: string;
+    connection: ConnectorConnectionInput;
+    tables: ConnectorTableMappingInput[];
+  }): Promise<T> {
+    return gateway.post<T>(endpoints.connectorGenerate, input);
+  },
+  async testConnector<T = ConnectorTestResult>(input: {
+    database: ConnectorDatabase;
+    connection: ConnectorConnectionInput;
+    tables: ConnectorTableMappingInput[];
+  }): Promise<T> {
+    return gateway.post<T>(endpoints.connectorTest, input);
+  },
+  async getConnectorPreferences<T = { preferences: ConnectorPreferences | null }>(): Promise<T> {
+    return gateway.get<T>(endpoints.connectorPreferences);
+  },
+  async saveConnectorPreferences<T = { preferences: ConnectorPreferences }>(input: {
+    language: ConnectorLanguage;
+    database: ConnectorDatabase;
+    connector_url?: string | null;
+  }): Promise<T> {
+    return gateway.post<T>(endpoints.connectorPreferences, input);
   },
 };

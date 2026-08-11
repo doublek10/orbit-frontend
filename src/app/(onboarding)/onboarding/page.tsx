@@ -19,6 +19,31 @@ const BUSINESS_TYPES = [
   { value: "agriculture", label: "Agriculture" },
   { value: "manufacturing", label: "Manufacturing" },
   { value: "technology", label: "Technology" },
+  { value: "logistics_transportation", label: "Logistics & Transportation" },
+  { value: "construction_real_estate", label: "Construction & Real Estate" },
+  { value: "hospitality_tourism", label: "Hospitality & Tourism" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "education", label: "Education" },
+  { value: "financial_services", label: "Financial Services" },
+  { value: "insurance", label: "Insurance" },
+  { value: "wholesale_distribution", label: "Wholesale & Distribution" },
+  { value: "energy_utilities", label: "Energy & Utilities" },
+  { value: "telecommunications", label: "Telecommunications" },
+  { value: "automotive", label: "Automotive" },
+  { value: "pharmaceuticals", label: "Pharmaceuticals" },
+  { value: "media_entertainment", label: "Media & Entertainment" },
+  { value: "nonprofits_ngos", label: "Nonprofits & NGOs" },
+  { value: "government_public_sector", label: "Government & Public Sector" },
+  { value: "mining_natural_resources", label: "Mining & Natural Resources" },
+  { value: "import_export_trading", label: "Import & Export / Trading" },
+  { value: "property_management", label: "Property Management" },
+  { value: "food_processing_agribusiness", label: "Food Processing & Agribusiness" },
+  { value: "security_services", label: "Security Services" },
+  { value: "cleaning_facility_management", label: "Cleaning & Facility Management" },
+  { value: "recruitment_hr", label: "Recruitment & Human Resources" },
+  { value: "travel_aviation", label: "Travel & Aviation" },
+  { value: "fisheries_aquaculture", label: "Fisheries & Aquaculture" },
+  { value: "professional_associations", label: "Professional Associations & Membership Organizations" },
   { value: "other", label: "Something else" },
 ];
 
@@ -248,7 +273,7 @@ export default function OnboardingPage() {
             <p className="text-xs uppercase tracking-wide text-graphite-600">
               What kind of business is this?
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid max-h-96 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
               {BUSINESS_TYPES.map((option) => (
                 <button
                   key={option.value}

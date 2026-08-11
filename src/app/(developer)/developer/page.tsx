@@ -10,20 +10,18 @@ import { developerService } from "@/core/services/developer.service";
 import { mappingService } from "@/core/services/mapping.service";
 import { GatewayError } from "@/core/gateway/response";
 import { formatDateTime } from "@/core/utils/format";
+import { ConnectorGenerator } from "@/components/developer/ConnectorGenerator";
 import type {
   ApiKey,
   ApiGenerateResult,
   CompanyEndpointInfo,
   CreatedApiKey,
   DeveloperKeysList,
-  SdkLanguage,
   TestEndpointResult,
 } from "@/types/platform-admin";
 import type { DataMapping } from "@/types/platform";
 
 type LoadState = "loading" | "ready" | "not-implemented" | "error";
-
-const SDK_LANGUAGES: SdkLanguage[] = ["typescript", "javascript", "php", "python", "java"];
 
 export default function DeveloperPage() {
   const [state, setState] = useState<LoadState>("loading");
@@ -44,11 +42,6 @@ export default function DeveloperPage() {
   const [selectedMappingId, setSelectedMappingId] = useState("");
   const [testResult, setTestResult] = useState<TestEndpointResult | null>(null);
   const [testing, setTesting] = useState(false);
-
-  const [sdkLanguage, setSdkLanguage] = useState<SdkLanguage>("typescript");
-  const [sdkCode, setSdkCode] = useState<string | null>(null);
-  const [sdkLoading, setSdkLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const load = useCallback(() => {
     setState("loading");
@@ -153,45 +146,6 @@ export default function DeveloperPage() {
     } finally {
       setTesting(false);
     }
-  }
-
-  async function handleLoadSdk(language: SdkLanguage) {
-    setSdkLanguage(language);
-    setSdkLoading(true);
-    setCopied(false);
-    try {
-      const res = await developerService.generateSdk(language);
-      setSdkCode(res.code);
-    } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Could not generate SDK code");
-    } finally {
-      setSdkLoading(false);
-    }
-  }
-
-  function handleCopy() {
-    if (!sdkCode) return;
-    navigator.clipboard.writeText(sdkCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
-
-  function handleDownload() {
-    if (!sdkCode) return;
-    const extensions: Record<SdkLanguage, string> = {
-      typescript: "ts",
-      javascript: "js",
-      php: "php",
-      python: "py",
-      java: "java",
-    };
-    const blob = new Blob([sdkCode], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `orbit-client.${extensions[sdkLanguage]}`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   return (
@@ -347,43 +301,10 @@ export default function DeveloperPage() {
           )}
 
           <div>
-            <p className="mb-3 text-xs uppercase tracking-wide text-graphite-600">SDK Generator</p>
-            <Card>
-              <div className="mb-3 flex flex-wrap gap-2">
-                {SDK_LANGUAGES.map((lang) => (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => handleLoadSdk(lang)}
-                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                      sdkLanguage === lang && sdkCode
-                        ? "border-signal-amber text-paper"
-                        : "border-graphite-600 text-graphite-600 hover:text-paper"
-                    }`}
-                  >
-                    {lang}
-                  </button>
-                ))}
-              </div>
-
-              {sdkLoading && <p className="text-sm text-graphite-600">Generating…</p>}
-
-              {sdkCode && !sdkLoading && (
-                <>
-                  <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded bg-graphite-900 p-3 font-mono text-xs text-paper">
-                    {sdkCode}
-                  </pre>
-                  <div className="mt-3 flex gap-2">
-                    <Button variant="ghost" onClick={handleCopy}>
-                      {copied ? "Copied!" : "Copy"}
-                    </Button>
-                    <Button variant="ghost" onClick={handleDownload}>
-                      Download
-                    </Button>
-                  </div>
-                </>
-              )}
-            </Card>
+            <p className="mb-3 text-xs uppercase tracking-wide text-graphite-600">
+              Orbit Connector Generator
+            </p>
+            <ConnectorGenerator />
           </div>
 
           {revealedSecret && (
