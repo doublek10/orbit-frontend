@@ -165,7 +165,7 @@ export function BlueprintPanel() {
             <p>
               Intelligence capabilities:{" "}
               <span className="font-mono text-xs text-graphite-600">
-                {blueprint.enabled_capabilities.length === 5
+                {blueprint.enabled_capabilities.length === 6
                   ? "all"
                   : blueprint.enabled_capabilities.join(", ") || "none"}
               </span>

@@ -81,6 +81,11 @@ const CAPABILITIES: { value: IntelligenceCapability; label: string; description:
   { value: "spend", label: "Spend concentration", description: "Which category is eating the most outflow." },
   { value: "anomaly", label: "Anomaly detection", description: "Unusual transactions flagged for review." },
   { value: "forecast", label: "Cash forecasting", description: "Projected balance 30/90 days out." },
+  {
+    value: "connector",
+    label: "Connected systems data",
+    description: "Live employees, invoices, inventory, and payments read from your saved Connector URL.",
+  },
 ];
 
 const STEP_LABELS = ["Business", "Priorities", "Alerts", "Intelligence", "Review"];

@@ -55,6 +55,7 @@ export const endpoints = {
     history: "/intelligence/history",
     status: "/intelligence/status",
     preferences: "/intelligence/preferences",
+    compile: "/intelligence/compile",
   },
   marketplace: "/marketplace",
   enterprise: "/enterprise",

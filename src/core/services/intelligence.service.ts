@@ -69,4 +69,41 @@ export const intelligenceService = {
   }): Promise<T> {
     return gateway.post<T>(endpoints.intelligence.preferences, payload);
   },
+
+  /**
+   * Compile: an on-demand, point-in-time snapshot of everything the
+   * Engine currently knows - ledger findings plus whatever the
+   * company's Connector URL reports live - rendered into a downloadable
+   * PDF. The Engine itself doesn't need this call (it runs
+   * continuously regardless); it exists purely so a person can hand
+   * someone else a document. Returns the PDF as base64 rather than a
+   * binary body since gateway.ts's single request() function always
+   * parses JSON (Development Rule #5) - see downloadCompiledReport
+   * below for turning this into an actual file download.
+   */
+  async compile<T = unknown>(): Promise<T> {
+    return gateway.post<T>(endpoints.intelligence.compile, {});
+  },
 };
+
+/**
+ * Decodes a compile() response's base64 PDF into a Blob and triggers a
+ * browser download - same client-side download pattern
+ * ConnectorGenerator.tsx already uses for generated connector code.
+ */
+export function downloadCompiledReport(result: { pdf_base64: string; filename: string }): void {
+  const binary = atob(result.pdf_base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const blob = new Blob([bytes], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = result.filename || "orbit-intelligence-report.pdf";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

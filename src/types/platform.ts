@@ -5,7 +5,7 @@ export type BlueprintPriority =
   | "fraud_and_risk_alerts"
   | "growth_forecasting";
 
-export type IntelligenceCapability = "health" | "trend" | "spend" | "anomaly" | "forecast";
+export type IntelligenceCapability = "health" | "trend" | "spend" | "anomaly" | "forecast" | "connector";
 
 export interface Blueprint {
   business_type: string;
