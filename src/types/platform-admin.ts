@@ -133,6 +133,16 @@ export interface ConnectorTableMappingInput {
   entity: string;
   table: string;
   id_column: string;
+  /**
+   * Required allow-list of the exact columns/document fields Orbit may
+   * read from this table - the PERMISSIONS piece of the spec made
+   * concrete. Orbit never generates or previews an unrestricted
+   * SELECT * / find(); a table submitted with an empty fields list is
+   * rejected by the Kernel (see connector_generator.py /
+   * connector_tester.py). id_column is tracked separately and is
+   * always included in the read even if omitted here.
+   */
+  fields: string[];
 }
 
 export interface ConnectorGenerateResult {
