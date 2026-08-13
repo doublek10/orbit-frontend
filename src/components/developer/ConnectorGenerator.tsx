@@ -33,7 +33,7 @@ const DEFAULT_TABLES: ConnectorTableMappingInput[] = [
 // Comma-separated <-> string[] for the Fields input. Kept forgiving of
 // stray spaces/commas since this is free text the company is typing,
 // not code - the Kernel is the one place that actually enforces the
-// allow-list, this is just how it's captured in the wizard.
+// allow-lis.
 function parseFieldsInput(raw: string): string[] {
   return raw
     .split(",")
