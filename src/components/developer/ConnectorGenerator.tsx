@@ -24,11 +24,22 @@ import {
 } from "@/types/platform-admin";
 
 const DEFAULT_TABLES: ConnectorTableMappingInput[] = [
-  { entity: "employees", table: "employees", id_column: "id" },
-  { entity: "invoices", table: "invoices", id_column: "id" },
-  { entity: "inventory", table: "inventory", id_column: "id" },
-  { entity: "payments", table: "payments", id_column: "id" },
+  { entity: "employees", table: "employees", id_column: "id", fields: ["name", "department"] },
+  { entity: "invoices", table: "invoices", id_column: "id", fields: ["invoice_id", "amount", "status"] },
+  { entity: "inventory", table: "inventory", id_column: "id", fields: ["product_id", "quantity"] },
+  { entity: "payments", table: "payments", id_column: "id", fields: ["invoice_id", "amount", "paid_at"] },
 ];
+
+// Comma-separated <-> string[] for the Fields input. Kept forgiving of
+// stray spaces/commas since this is free text the company is typing,
+// not code - the Kernel is the one place that actually enforces the
+// allow-list, this is just how it's captured in the wizard.
+function parseFieldsInput(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((f) => f.trim())
+    .filter(Boolean);
+}
 
 const DEFAULT_CONNECTION: ConnectorConnectionInput = {
   host: "",
@@ -49,7 +60,10 @@ type Step = "language" | "database" | "configure" | "code" | "done";
  * Step 1: language. Step 2: database engine. Step 3: an editable
  * connection form + table map (which of the user's own tables map to
  * which Orbit entity - employees, invoices, inventory, payments,
- * anything else). Step 4: the generated code, still editable, with a
+ * anything else), where each table also requires an explicit allow-list
+ * of the columns/fields Orbit may read - there is no "read everything"
+ * option; the Kernel rejects a table with an empty field list. Step 4:
+ * the generated code, still editable, with a
  * filename field defaulting to orbit-connector.<ext>, download/copy,
  * and a Test Connection button that runs a live read-only preview via
  * the Kernel - nothing from that preview is ever saved.
@@ -138,7 +152,7 @@ export function ConnectorGenerator() {
   }
 
   function addTable() {
-    setTables((prev) => [...prev, { entity: "", table: "", id_column: "id" }]);
+    setTables((prev) => [...prev, { entity: "", table: "", id_column: "id", fields: [] }]);
   }
 
   function removeTable(index: number) {
@@ -156,7 +170,7 @@ export function ConnectorGenerator() {
         database,
         filename: filename || undefined,
         connection,
-        tables: tables.filter((t) => t.entity.trim() && t.table.trim()),
+        tables: tables.filter((t) => t.entity.trim() && t.table.trim() && t.fields.length > 0),
       });
       setCode(res.code);
       setFilename(res.filename);
@@ -178,7 +192,7 @@ export function ConnectorGenerator() {
       const res = await developerService.testConnector({
         database,
         connection,
-        tables: tables.filter((t) => t.entity.trim() && t.table.trim()),
+        tables: tables.filter((t) => t.entity.trim() && t.table.trim() && t.fields.length > 0),
       });
       setTestResult(res);
       if (res.connected && language) {
@@ -520,29 +534,53 @@ export function ConnectorGenerator() {
 
           <div>
             <p className="mb-2 text-xs uppercase tracking-wide text-graphite-600">
-              Where is your data? Map each Orbit entity to your real table{database === "mongodb" ? "/collection" : ""} name.
+              Where is your data? Map each Orbit entity to your real table{database === "mongodb" ? "/collection" : ""} name,
+              then list exactly which columns{database === "mongodb" ? "/document fields" : ""} Orbit may read.
+            </p>
+            <p className="mb-3 text-xs text-graphite-600">
+              Orbit never reads a whole table by default - a table with no fields listed can&apos;t be
+              generated or tested. Leave out anything sensitive, e.g. list{" "}
+              <span className="font-mono">name, department</span> for employees but not a password hash or
+              a private notes column.
             </p>
             <div className="flex flex-col gap-2">
               {tables.map((t, i) => (
-                <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                <div key={i} className="flex flex-col gap-1 rounded border border-graphite-700 p-2">
+                  <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                    <Input
+                      value={t.entity}
+                      onChange={(e) => updateTable(i, { entity: e.target.value })}
+                      placeholder="Orbit entity, e.g. employees"
+                    />
+                    <Input
+                      value={t.table}
+                      onChange={(e) => updateTable(i, { table: e.target.value })}
+                      placeholder={database === "mongodb" ? "your collection name" : "your table name"}
+                    />
+                    <Input
+                      value={t.id_column}
+                      onChange={(e) => updateTable(i, { id_column: e.target.value })}
+                      placeholder="id column"
+                    />
+                    <Button variant="ghost" onClick={() => removeTable(i)}>
+                      Remove
+                    </Button>
+                  </div>
                   <Input
-                    value={t.entity}
-                    onChange={(e) => updateTable(i, { entity: e.target.value })}
-                    placeholder="Orbit entity, e.g. employees"
+                    value={t.fields.join(", ")}
+                    onChange={(e) => updateTable(i, { fields: parseFieldsInput(e.target.value) })}
+                    placeholder={
+                      database === "mongodb"
+                        ? "Allowed document fields, e.g. name, department"
+                        : "Allowed columns, e.g. name, department"
+                    }
                   />
-                  <Input
-                    value={t.table}
-                    onChange={(e) => updateTable(i, { table: e.target.value })}
-                    placeholder={database === "mongodb" ? "your collection name" : "your table name"}
-                  />
-                  <Input
-                    value={t.id_column}
-                    onChange={(e) => updateTable(i, { id_column: e.target.value })}
-                    placeholder="id column"
-                  />
-                  <Button variant="ghost" onClick={() => removeTable(i)}>
-                    Remove
-                  </Button>
+                  {t.table.trim() && t.fields.length === 0 && (
+                    <p className="text-xs text-signal-red">
+                      No fields allowed yet - Orbit will refuse to generate or test this table until at
+                      least one column is listed.
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -555,7 +593,10 @@ export function ConnectorGenerator() {
             <Button variant="ghost" onClick={() => setStep("database")}>
               Back
             </Button>
-            <Button onClick={handleGenerate} disabled={generating}>
+            <Button
+              onClick={handleGenerate}
+              disabled={generating || tables.some((t) => t.table.trim() && t.fields.length === 0)}
+            >
               {generating ? "Generating…" : "Generate connector code"}
             </Button>
           </div>
