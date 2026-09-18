@@ -60,4 +60,8 @@ export const endpoints = {
   marketplace: "/marketplace",
   enterprise: "/enterprise",
   developer: "/developer",
+  whatsapp: "/whatsapp",
+  whatsappDisconnect: "/whatsapp/disconnect",
+  whatsappVerifyStart: "/whatsapp/verify/start",
+  whatsappVerifyConfirm: "/whatsapp/verify/confirm",
 } as const;

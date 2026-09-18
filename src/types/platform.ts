@@ -113,6 +113,39 @@ export interface ProviderTestResult {
   message?: string;
 }
 
+// --- WhatsApp Channel ---
+
+export interface LinkedWhatsAppNumber {
+  id: string;
+  phone_number: string;
+  display_name: string | null;
+  user_email: string;
+  linked_at: string;
+  last_message_at: string | null;
+  is_active: boolean;
+}
+
+export interface WhatsAppLinksList {
+  linked_numbers: LinkedWhatsAppNumber[];
+}
+
+export interface WhatsAppPairingCode {
+  code: string;
+  expires_at: string;
+  orbit_whatsapp_number: string;
+  instructions: string;
+}
+
+export interface WhatsAppVerifyStartResult {
+  sent: true;
+  expires_at: string;
+}
+
+export interface WhatsAppVerifyConfirmResult {
+  linked: true;
+}
+
+
 export type BusinessSystemType =
   | "payroll"
   | "accounting"

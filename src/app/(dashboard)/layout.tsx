@@ -19,6 +19,7 @@ const NAV = [
   { href: "/insights", label: "Insights" },
   { href: "/intelligence", label: "Intelligence" },
   { href: "/replay", label: "Replay" },
+  { href: "/whatsapp", label: "WhatsApp" },
   { href: "/settings", label: "Settings" },
   { href: "/developer", label: "Developer" },
   { href: "/marketplace", label: "Marketplace" },
